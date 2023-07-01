@@ -162,7 +162,8 @@ def main(data_dir, worker_num=200, batch_size=16, learning_rate=0.1, epoch=50, c
         pickle.dump(output, f)
 
     print('Data saved to: {}'.format(fname))
-    
+    torch.save(model.state_dict(), 'model_dict.pth')
+
 
 if __name__ == '__main__':
     main(data_dir='../MNIST_data',
