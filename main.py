@@ -7,16 +7,8 @@ import pickle
 import torch
 import gzip
 
-
 SEED = 10
-DEVICE = 'cpu'
-data_dir = 'MNIST_data'
-worker_num = 200
-batch_size = 16
-learning_rate = 0.1
-epoch = 100
-client_selection_rate = 0.5
-fname = 'test.pkl'
+DEVICE = 'gpu'
 
 def run_fedavg( data_feeders, test_data, model, client_opt,  
                 T, M, K, B, test_freq=1, bn_setting=0, noisy_idxs=[]):
@@ -114,13 +106,15 @@ def run_fedavg( data_feeders, test_data, model, client_opt,
     train_errs /= M * K
     train_accs /= M * K
     
-    print(f'train accuracy = {train_accs} %%%%% train loss = {train_errs}')
-    print(f'test accuracy = {test_accs} %%%%% test loss = {test_errs}')
+    print(f'train accuracy = {train_accs}\ntrain loss = {train_errs}')
+    print("-----------------------------------------------------------")
+    print(f'test accuracy = {test_accs}\ntest loss = {test_errs}')
+
     return train_errs, train_accs, test_errs, test_accs
 
 
 
-def main():
+def main(data_dir, worker_num=200, batch_size=16, learning_rate=0.1, epoch=50, client_selection_rate=0.5, fname='model.pkl'):
     """
     Run experiment specified by command-line args.
     """
@@ -137,10 +131,11 @@ def main():
     
  
     # convert to pytorch tensors
-    feeders   = [   PyTorchDataFeeder(x, torch.float32, y, 'long', device) 
-                    for (x, y) in zip(train[0], train[1])]
-    test_data = (   [to_tensor(x, device, torch.float32) for x in test[0]],
-                    [to_tensor(y, device, 'long') for y in test[1]])
+    feeders   = [   PyTorchDataFeeder(x, torch.float32, y, 'long', device) for (x, y) in zip(train[0], train[1])]
+    
+    test_data = (   [torch.tensor(x, device=DEVICE, requires_grad=False, dtype=torch.float32) for x in test[0]],
+                    [torch.tensor(y, device=DEVICE, requires_grad=False, dtype=torch.int32).long() for y in test[1]])
+    
 
     # miscellaneous settings
     M                 = int(worker_num * client_selection_rate)
@@ -150,15 +145,30 @@ def main():
     print('Starting experiment...')
     client_optim = ClientSGD(model.parameters(), lr=learning_rate)
     model.set_optim(client_optim)
-    data = run_fedavg(  feeders, test_data, model, client_optim, epoch, M, 
-                        K, batch_size, bn_setting=3)
-    
-    
+    train_errs, train_accs, test_errs, test_accs = run_fedavg(  feeders, test_data, model, client_optim, epoch, M, 
+                                                                K, batch_size, bn_setting=3)    
+    output = {
+        'model': model,
+        'train_res': {
+            'errs': train_errs,
+            'accs': train_accs
+        },
+        'test_res': {
+            'errs': test_errs,
+            'accs': test_accs
+        }
+    }
     with open(fname, 'wb') as f:
-        pickle.dump(data, f)
+        pickle.dump(output, f)
 
     print('Data saved to: {}'.format(fname))
     
 
 if __name__ == '__main__':
-    main()
+    main(data_dir='../MNIST_data',
+         worker_num=200,
+         batch_size=16,
+         learning_rate=0.1,
+         epoch=100,
+         client_selection_rate=0.5,
+         fname='model.pkl')
