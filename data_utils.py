@@ -98,9 +98,6 @@ class PyTorchDataFeeder():
         return x, y
 
 
-
-
-
 def data_split(x, y, W):
     """
     Shuffle x and y using the same random order, split into W parts.
@@ -158,21 +155,3 @@ def load_dataset(data_dir, W):
     
     return (x_train, y_train), (x_test, y_test)
 
-
-def to_tensor(x, device, dtype):
-    """
-    Convert Numpy array to torch.tensor.
-    
-    Args:
-    - x:        (np.ndarray)   array to convert
-    - device:   (torch.device) to place tensor on
-    - dtype:    (torch.dtype)  or 'long' to convert to pytorch long
-    """
-    if dtype == 'long':
-        return torch.tensor(x, device=device, 
-                            requires_grad=False, 
-                            dtype=torch.int32).long()
-    else:
-        return torch.tensor(x, device=device, 
-                            requires_grad=False, 
-                            dtype=dtype)
