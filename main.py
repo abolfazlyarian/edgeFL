@@ -133,8 +133,8 @@ def main(data_dir, worker_num=200, batch_size=16, learning_rate=0.1, epoch=50, c
     # convert to pytorch tensors
     feeders   = [   PyTorchDataFeeder(x, torch.float32, y, 'long', device) for (x, y) in zip(train[0], train[1])]
     
-    test_data = (   [torch.tensor(x, device=DEVICE, requires_grad=False, dtype=torch.float32) for x in test[0]],
-                    [torch.tensor(y, device=DEVICE, requires_grad=False, dtype=torch.int32).long() for y in test[1]])
+    test_data = (   [torch.tensor(x, device=device, requires_grad=False, dtype=torch.float32) for x in test[0]],
+                    [torch.tensor(y, device=device, requires_grad=False, dtype=torch.int32).long() for y in test[1]])
     
 
     # miscellaneous settings
