@@ -175,9 +175,9 @@ class FLModel(torch.nn.Module):
         Returns:
             tupe of floats (loss, acc) calculated during the training step.
         """
-        logits = self.forward(x)
-        loss = self.loss_fn(logits, y)
-        acc = self.calc_acc(logits, y)
+        logits = self.forward(x[0].reshape(1,-1))
+        loss = self.loss_fn(logits, y[0].reshape(-1))
+        acc = self.calc_acc(logits, y[0].reshape(-1))
         self.optim.zero_grad()
         loss.backward()        
         self.optim.step()
@@ -203,12 +203,14 @@ class FLModel(torch.nn.Module):
         
         with torch.no_grad():
             for b in range(n_batches):
-                logits = self.forward(x[b*B:(b+1)*B])
-                loss += self.loss_fn(logits, y[b*B:(b+1)*B]).item()
-                acc += self.calc_acc(logits, y[b*B:(b+1)*B])
+                logits = self.forward(x[b*B:(b+1)*B][0].reshape(1,-1))
+                loss += self.loss_fn(logits, y[b*B:(b+1)*B][0].reshape(-1)).item()
+                acc += self.calc_acc(logits, y[b*B:(b+1)*B][0].reshape(-1))
         self.train()
         
         return loss/n_batches, acc/n_batches
+    
+
 
 
 
@@ -281,6 +283,77 @@ class MNISTModel(FLModel):
                                     device=self.device,
                                     dtype=torch.int32).long())
 
+
+class NewModel(FLModel):
+    """
+    New model that inherits from FLModel.
+    """
+
+    def __init__(self, device, model):
+        """
+        Returns a new instance of NewModel.
+
+        Args:
+            - device: (torch.device) device to place the model on
+            - model: (torch.nn.Module) the pre-trained model loaded from ONNX and converted to PyTorch
+        """
+        super(NewModel, self).__init__(device)
+
+        self.loss_fn = torch.nn.CrossEntropyLoss(reduction='mean')
+        self.model = model.to(device)
+        self.bn_layers = self.get_bn_layers(model)
+
+    def get_bn_layers(self, model):
+        """
+        Get the BN layers from the model.
+
+        Args:
+            - model: (torch.nn.Module) the pre-trained model
+
+        Returns:
+            list: BN layers in the model
+        """
+        bn_layers = []
+        for module in model.modules():
+            if isinstance(module, torch.nn.BatchNorm1d):
+                bn_layers.append(module)
+        return bn_layers
+
+    def forward(self, x):
+        """
+        Returns outputs of the model given input data x.
+
+        Args:
+            - x: (torch.tensor) input data, must be on the same device as the model
+
+        Returns:
+            torch.tensor: model outputs
+        """
+        batch_size = x.size(0)
+        x = x.view(batch_size, -1)
+        return self.model(x)
+
+    def calc_acc(self, logits, y):
+        """
+        Calculate the top-1 accuracy of the model.
+
+        Args:
+            - logits: (torch.tensor) unnormalized predictions of y
+            - y: (torch.tensor) true values
+
+        Returns:
+            torch.tensor: scalar value representing the accuracy
+        """
+        return (torch.argmax(logits, dim=1) == y).float().mean()
+
+    def empty_step(self):
+        """
+        Perform one step of SGD with all-0 inputs and targets to initialize optimizer parameters.
+        """
+        self.train_step(
+            torch.zeros((1, 784), device=self.device, dtype=torch.float32),
+            torch.zeros((1), device=self.device, dtype=torch.int32).long()
+        )
 
 
 class NumpyModel():
