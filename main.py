@@ -5,10 +5,10 @@ import numpy as np
 from tqdm import tqdm
 import pickle
 import torch
-import gzip
+import nas
 
 SEED = 10
-DEVICE = 'gpu'
+DEVICE = 'cpu'
 
 def run_fedavg( data_feeders, test_data, model, client_opt,  
                 T, M, K, B, test_freq=1, bn_setting=0, noisy_idxs=[]):
@@ -126,7 +126,9 @@ def main(data_dir, worker_num=200, batch_size=16, learning_rate=0.1, epoch=50, c
     # load data 
     print('Loading data...')
     train, test = load_dataset(data_dir=data_dir, W=worker_num)
-    model       = MNISTModel(device)
+    convert_model = nas.convert_model()
+    model       = NewModel(device, convert_model)
+    # model       = MNISTModel(device)
     steps_per_E = int(np.round(60000 / (worker_num * batch_size)))
     
  
@@ -168,7 +170,7 @@ def main(data_dir, worker_num=200, batch_size=16, learning_rate=0.1, epoch=50, c
 if __name__ == '__main__':
     main(data_dir='../MNIST_data',
          worker_num=200,
-         batch_size=16,
+         batch_size=2,
          learning_rate=0.1,
          epoch=100,
          client_selection_rate=0.5,
